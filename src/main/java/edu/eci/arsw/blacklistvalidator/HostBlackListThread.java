@@ -19,14 +19,15 @@ public class HostBlackListThread extends Thread{
     HostBlacklistsDataSourceFacade skds;
     int ini;
     int fin;
-    int ocurrencesCount = 0;
     LinkedList<Integer> blackListOcurrences=new LinkedList<>();
+    HostBlackListsValidator obj;
     
-    public HostBlackListThread(String ip, HostBlacklistsDataSourceFacade servers, int i, int f){
+    public HostBlackListThread(String ip, HostBlacklistsDataSourceFacade servers, int i, int f, HostBlackListsValidator o){
         this.ipaddress = ip;
         this.skds = servers;
         this.ini = i;
         this.fin = f;
+        this.obj = o;
     }
     
     public void run(){
@@ -34,15 +35,10 @@ public class HostBlackListThread extends Thread{
         for (int i=ini;i<fin;i++){
             
             if (skds.isInBlackListServer(i, ipaddress)){
+                obj.incrementOcurrences();
                 blackListOcurrences.add(i);
-                
-                ocurrencesCount++;
             }
         }
-    }
-    
-    public int getOcurrencesCount(){
-        return ocurrencesCount;
     }
     
     public LinkedList<Integer> getBlackListOcurrences(){
@@ -50,6 +46,6 @@ public class HostBlackListThread extends Thread{
     }
     
     public int getRange() {
-        return fin - ini;
+        return blackListOcurrences.size();
     }
 }

@@ -7,6 +7,8 @@ package edu.eci.arsw.blacklistvalidator;
 
 import edu.eci.arsw.spamkeywordsdatasource.HostBlacklistsDataSourceFacade;
 import java.util.LinkedList;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
 /**
@@ -19,30 +21,34 @@ public class HostBlackListThread extends Thread{
     HostBlacklistsDataSourceFacade skds;
     int ini;
     int fin;
-    int ocurrencesCount = 0;
+    int limitCount;
+    int i;
+    AtomicInteger ocurrencesCount;
+    AtomicBoolean confiable;
     LinkedList<Integer> blackListOcurrences=new LinkedList<>();
     
-    public HostBlackListThread(String ip, HostBlacklistsDataSourceFacade servers, int i, int f){
+    public HostBlackListThread(String ip, HostBlacklistsDataSourceFacade servers, int in, int f, AtomicInteger ocuC, AtomicBoolean cnf, int limit){
         this.ipaddress = ip;
         this.skds = servers;
-        this.ini = i;
+        this.ini = in;
         this.fin = f;
+        this.ocurrencesCount = ocuC;
+        this.limitCount = limit;
+        this.confiable = cnf;
     }
     
     public void run(){
         //System.out.println(ini+" - "+fin);
-        for (int i=ini;i<fin;i++){
-            
+        for (i=ini;i<fin && confiable.get();i++){
+            //System.out.println(i);
             if (skds.isInBlackListServer(i, ipaddress)){
                 blackListOcurrences.add(i);
-                
-                ocurrencesCount++;
+                if(ocurrencesCount.incrementAndGet() >= limitCount) {
+                    confiable.set(false);
+                }
             }
         }
-    }
-    
-    public int getOcurrencesCount(){
-        return ocurrencesCount;
+        //System.out.println(i-ini);
     }
     
     public LinkedList<Integer> getBlackListOcurrences(){
@@ -50,6 +56,6 @@ public class HostBlackListThread extends Thread{
     }
     
     public int getRange() {
-        return fin - ini;
+        return i-ini;
     }
 }

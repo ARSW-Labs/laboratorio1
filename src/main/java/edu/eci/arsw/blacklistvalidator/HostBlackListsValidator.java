@@ -9,6 +9,8 @@ import edu.eci.arsw.spamkeywordsdatasource.HostBlacklistsDataSourceFacade;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -42,19 +44,19 @@ public class HostBlackListsValidator {
         
         List<HostBlackListThread> threads = new ArrayList<>();
         
-        int ocurrencesCount=0;
+        AtomicInteger ocurrencesCount= new AtomicInteger();
+        
+        AtomicBoolean confiable = new AtomicBoolean(true);
         
         int checkedListsCount=0;
-        
-        boolean confiable = true;
         
         multiplo = skds.getRegisteredServersCount() / N == intervalo;
         
         for (int i = 0; i < N; i++) {
             if (!multiplo && i == N-1){
-                threads.add(new HostBlackListThread(ipaddress, skds, intervalo*i, skds.getRegisteredServersCount()));
+                threads.add(new HostBlackListThread(ipaddress, skds, intervalo*i, skds.getRegisteredServersCount(), ocurrencesCount, confiable, BLACK_LIST_ALARM_COUNT));
             } else {
-                threads.add(new HostBlackListThread(ipaddress, skds, intervalo*i, intervalo*(i + 1)));
+                threads.add(new HostBlackListThread(ipaddress, skds, intervalo*i, intervalo*(i + 1), ocurrencesCount, confiable, BLACK_LIST_ALARM_COUNT));
             }
         }
         
@@ -62,21 +64,17 @@ public class HostBlackListsValidator {
             threads.get(i).start();
         }
         
+        Thread.sleep(500);
+        
         for (int i = 0; i < N; i++) {
-            threads.get(i).join();
-        }
-        
-        for (int i = 0; i < N && confiable; i++) {
             checkedListsCount += threads.get(i).getRange();
-            ocurrencesCount += threads.get(i).getOcurrencesCount();
+            //System.out.println(checkedListsCount);
             blackListOcurrences.addAll(threads.get(i).getBlackListOcurrences());
-            if (ocurrencesCount>=BLACK_LIST_ALARM_COUNT) {
-                confiable = false;
-                skds.reportAsNotTrustworthy(ipaddress);
-            }
         }
         
-        if (confiable) {
+        if (ocurrencesCount.get() >= BLACK_LIST_ALARM_COUNT) {
+            skds.reportAsNotTrustworthy(ipaddress);
+        } else {
             skds.reportAsTrustworthy(ipaddress);
         }
         
